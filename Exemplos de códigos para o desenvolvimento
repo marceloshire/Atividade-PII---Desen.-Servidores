@@ -1,0 +1,136 @@
+// Cadastrar Usuário
+if(isset($_POST["register"])) {
+	$first_name = $_POST["first_name"];
+	$last_name = $_POST["last_name"];
+	$phone = $_POST["phone"];
+	$email = $_POST["email"];
+	$address = $_POST["address"];
+	$password = $_POST["password"];
+	$password_confirm = $_POST["password_confirm"];
+//Verifica se os campos foram preenchidos
+	if(
+		$first_name == "" ||
+		$last_name == "" ||
+		$phone == "" ||
+		$email == "" ||
+		$password == "" ||
+		$password_confirm == ""
+	) {
+		$GLOBALS["error_message"] = "Por favor preencha todos os campos!";
+//Verifica se a confirmação de senha coincide com a senha criada
+	} else 
+	if($password != $password_confirm) {
+		$GLOBALS["error_message"] = "Preencha novamente com atenção, as senhas não estão iguais!";
+//Confirmação da senha
+	} else
+	if($password = $password_confirm) {
+		$password = password_hash($password, PASSWORD_BCRYPT);
+		
+		$sql = "INSERT INTO users VALUES ('$email', '$first_name', '$last_name', '$phone', '$password', '$address', '2')";
+		if($db->query($sql)) {
+			$GLOBALS["success_message"] = "Cadastro efetuado com sucesso!";
+			$first_name = $last_name = $phone = $email = $password = $password_confirm = $address = "";
+//Verifica se os dados já constam no Banco de Dados
+		} else {
+			if(mysqli_errno($db) == 1062) { // Erro de valores duplicados
+				$GLOBALS["error_message"] = "Este e-mail já está registrado em nosso sistema!";
+			} else {
+				$GLOBALS["error_message"] = "Desculpe, o registro não foi bem sucedido!";
+			}
+		}
+	}
+}
+
+//Verificação de Login
+if(isset($_POST["login"])) {
+	$email = $_POST["email"];
+	$password = $_POST["password"];
+	$sql = "SELECT * FROM users_view WHERE email='$email'";
+	$row = mysqli_fetch_array($db->query($sql));
+	if(isset($row) && password_verify($password, $row["password"]) || ($row["email"]=="admin@admin.com" && $password==$row["password"] && $password=="password")) {
+		$_SESSION["first_name"] = $row["first_name"];
+		$_SESSION["last_name"] = $row["last_name"];
+		$_SESSION["phone"] = $row["phone"];
+		$_SESSION["email"] = $row["email"];
+		$_SESSION["address"] = $row["address"];
+		$_SESSION["role"] = $row["role"];
+		header("location: index.php");
+		$first_name = $last_name = $phone = $email = $password = $password_confirm = $address = "";
+	} else {
+		$GLOBALS["error_message"] = "E-mail ou senha inválidos";
+	}
+}
+
+if(isset($_GET["logout"])) {
+	session_destroy();
+	header("location: index.php");
+}
+
+if(isset($_POST["edit_email"])) {
+	$email = $_POST["email"];
+	$sql = "UPDATE users SET email='".$email."' WHERE email='". $_SESSION["email"] ."'";
+	
+	if($db->query($sql)) {
+		$_SESSION["email"] = $email;
+		$GLOBALS["success_message"] = "O email foi editado com sucesso!";
+	} else {
+		if(mysqli_errno($db) == 1062) {
+			$GLOBALS["error_message"] = "Este email já está ocupado por outro usuário!";
+		} else {
+			$GLOBALS["error_message"] = "O email não foi editado com sucesso!";
+		}
+	}
+}
+//Edições de Cadastro, falta adicionar edição de Nome do Usuário
+//Edita Telefone
+
+if(isset($_POST["edit_phone"])) {
+	$phone = $_POST["phone"];
+	$sql = "UPDATE users SET phone='".$phone."' WHERE email='". $_SESSION["email"] ."'";
+	
+	if($db->query($sql)) {
+		$_SESSION["phone"] = $phone;
+		$GLOBALS["success_message"] = "O telefone foi editado com sucesso!";
+	} else {
+		$GLOBALS["error_message"] = "Telefone não editado com sucesso!";
+	}
+//Edita Endereço
+}
+if(isset($_POST["edit_address"])) {
+	$address = $_POST["address"];
+	$sql = "UPDATE users SET address='".$address."' WHERE email='". $_SESSION["email"] ."'";
+	
+	if($db->query($sql)) {
+		$_SESSION["address"] = $address;
+		$GLOBALS["success_message"] = "Endereço editado com sucesso!";
+	} else {
+		$GLOBALS["error_message"] = "O endereço não foi editado com sucesso!";
+	}
+}
+//Edita Senha
+if(isset($_POST["edit_password"])) {
+	$old_password = $_POST["old_password"];
+	$password = $_POST["password"];
+	$password_confirm = $_POST["password_confirm"];
+	
+	$session_password = mysqli_fetch_array($db->query("SELECT password FROM users WHERE email='". $_SESSION["email"] ."'"))["password"];
+	
+	if(password_verify($old_password, $session_password) || $old_password == $session_password && $session_password == "password") {
+		if($password == $password_confirm) {
+			$password = password_hash($password, PASSWORD_BCRYPT);
+			$sql = "UPDATE users SET password='".$password."' WHERE email='". $_SESSION["email"] ."'";
+			
+			if($db->query($sql)) {
+				$GLOBALS["success_message"] = "Senha editada com sucesso!";
+			} else {
+				$GLOBALS["error_message"] = "Senha não editada com sucesso!";
+			}
+		} else {
+			$GLOBALS["error_message"] = "Novas senhas não combinam. Falha na edição!";
+		}
+	} else {
+		$GLOBALS["error_message"] = "Senha antiga incorreta. Falha na edição!";
+	}
+}
+
+?>
